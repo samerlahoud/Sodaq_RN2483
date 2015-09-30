@@ -22,6 +22,8 @@
 
 // MBili
 #define debugSerial Serial
+// Autonomo
+//#define debugSerial SerialUSB
 #define loraSerial Serial1
 
 const uint8_t devAddr[4] =
