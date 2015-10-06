@@ -25,7 +25,7 @@
 #ifdef DEBUG
 #define debugPrintLn(...) { if (this->diagStream) this->diagStream->println(__VA_ARGS__); }
 #define debugPrint(...) { if (this->diagStream) this->diagStream->print(__VA_ARGS__); }
-#warning Debug mode is ON
+#warning "Debug mode is ON"
 #else
 #define debugPrintLn(...)
 #define debugPrint(...)
@@ -36,14 +36,17 @@ typedef struct StringEnumPair
 {
     const char* stringValue;
     uint8_t enumValue;
-} StringEnumPair;
+} StringEnumPair_t;
 
 Sodaq_RN2483 LoRaBee;
 
 // Creates a new Sodaq_RN2483 instance.
 Sodaq_RN2483::Sodaq_RN2483() :
-    inputBufferSize(DEFAULT_INPUT_BUFFER_SIZE),
-    receivedPayloadBufferSize(DEFAULT_RECEIVED_PAYLOAD_BUFFER_SIZE)
+        loraStream(0),
+        diagStream(0),
+        inputBufferSize(DEFAULT_INPUT_BUFFER_SIZE),
+        receivedPayloadBufferSize(DEFAULT_RECEIVED_PAYLOAD_BUFFER_SIZE),
+        packetReceived(false)
 {
 #ifdef USE_DYNAMIC_BUFFER
     this->isBufferInitialized = false;
@@ -237,8 +240,7 @@ bool Sodaq_RN2483::joinNetwork(const char* type)
 // to the device and awaits for the response.
 // Returns true on success.
 // NOTE: paramName should include a trailing space
-bool Sodaq_RN2483::setMacParam(const char* paramName, const uint8_t* paramValue,
-        uint16_t size)
+bool Sodaq_RN2483::setMacParam(const char* paramName, const uint8_t* paramValue, uint16_t size)
 {
     debugPrint("[setMacParam] "); debugPrint(paramName); debugPrint("= [array]");
 
@@ -304,7 +306,7 @@ uint8_t Sodaq_RN2483::lookupMacTransmitError(const char* error)
         return NoResponse;
     }
 
-    StringEnumPair errorTable[] =
+    StringEnumPair_t errorTable[] =
     {
         { STR_RESULT_INVALID_PARAM, InternalError },
         { STR_RESULT_NOT_JOINED, NotConnected },
@@ -317,9 +319,10 @@ uint8_t Sodaq_RN2483::lookupMacTransmitError(const char* error)
         { STR_RESULT_MAC_ERROR, NoAcknowledgment },
     };
 
-    for (StringEnumPair* p = errorTable; p->stringValue != NULL; ++p) {
+    for (StringEnumPair_t * p = errorTable; p->stringValue != NULL; ++p) {
         if (strcmp(p->stringValue, error) == 0) {
-            debugPrint("[lookupMacTransmitError]: found "); debugPrintLn(p->enumValue);
+            debugPrint("[lookupMacTransmitError]: found ");
+            debugPrintLn(p->enumValue);
 
             return p->enumValue;
         }
@@ -457,13 +460,13 @@ void Sodaq_RN2483::runTestSequence(Stream& stream)
     memcpy(this->receivedPayloadBuffer, mockResult, strlen(mockResult) + 1);
     uint8_t payload[64];
     debugPrintLn("* without having received packet");
-    uint8_t length = receive(payload, 64);
+    uint8_t length = receive(payload, sizeof(payload));
     debugPrintLn(reinterpret_cast<char*>(payload));
     debugPrint("Length: ");
     debugPrintLn(length);
     debugPrintLn("* having received packet");
     this->packetReceived = true;
-    length = receive(payload, 64);
+    length = receive(payload, sizeof(payload));
     debugPrintLn(reinterpret_cast<char*>(payload));
     debugPrint("Length: ");
     debugPrintLn(length);
@@ -479,15 +482,15 @@ void Sodaq_RN2483::runTestSequence(Stream& stream)
     debugPrint("onMacRX result code: ");
     debugPrintLn(onMacRX());
     uint8_t payload2[64];
-    if (receive(payload2, 64) != 9) {
+    if (receive(payload2, sizeof(payload2)) != 9) {
         debugPrintLn("len is wrong!");
     }
     debugPrintLn(reinterpret_cast<char*>(payload2));
-    if (receive(payload2, 64, 2) != 7) {
+    if (receive(payload2, sizeof(payload2), 2) != 7) {
         debugPrintLn("len is wrong!");
     }
     debugPrintLn(reinterpret_cast<char*>(payload2));
-    if (receive(payload2, 64, 3) != 6) {
+    if (receive(payload2, sizeof(payload2), 3) != 6) {
         debugPrintLn("len is wrong!");
     }
     debugPrintLn(reinterpret_cast<char*>(payload2));
@@ -523,7 +526,8 @@ void Sodaq_RN2483::runTestSequence(Stream& stream)
 
 int Sodaq_RN2483::freeRam()
 {
-    extern int __heap_start, *__brkval;
+    extern int __heap_start;
+    extern int *__brkval;
     int v;
     return (int)&v - (__brkval == 0 ? (int)&__heap_start : (int)__brkval);
 }
