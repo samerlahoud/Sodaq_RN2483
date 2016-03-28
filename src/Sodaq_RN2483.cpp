@@ -233,7 +233,7 @@ bool Sodaq_RN2483::joinNetwork(const char* type)
     this->loraStream->print(type);
     this->loraStream->print(CRLF);
 
-    return expectOK() && expectString(STR_ACCEPTED);
+    return expectOK() && expectString(STR_ACCEPTED, 10000);
 }
 
 // Sends the given mac command together with the given paramValue
