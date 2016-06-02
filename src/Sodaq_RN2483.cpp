@@ -21,6 +21,7 @@
 #include "Sodaq_RN2483.h"
 #include "StringLiterals.h"
 #include "Utils.h"
+#include "Sodaq_wdt.h"
 
 #ifdef DEBUG
 #define debugPrintLn(...) { if (this->diagStream) this->diagStream->println(__VA_ARGS__); }
@@ -54,7 +55,7 @@ Sodaq_RN2483::Sodaq_RN2483() :
 }
 
 // Takes care of the init tasks common to both initOTA() and initABP.
-void Sodaq_RN2483::init(Stream& stream)
+void Sodaq_RN2483::init(SerialType& stream)
 {
     debugPrintLn("[init]");
 
@@ -69,11 +70,16 @@ void Sodaq_RN2483::init(Stream& stream)
         isBufferInitialized = true;
     }
 #endif
+
+    // make sure the module's state is synced and woken up
+    sleep();
+    sodaq_wdt_safe_delay(10);
+    wakeUp();
 }
 
 // Initializes the device and connects to the network using Over-The-Air Activation.
 // Returns true on successful connection.
-bool Sodaq_RN2483::initOTA(Stream& stream, const uint8_t devEUI[8], const uint8_t appEUI[8], const uint8_t appKey[16], bool adr)
+bool Sodaq_RN2483::initOTA(SerialType& stream, const uint8_t devEUI[8], const uint8_t appEUI[8], const uint8_t appKey[16], bool adr)
 {
     debugPrintLn("[initOTA]");
 
@@ -89,7 +95,7 @@ bool Sodaq_RN2483::initOTA(Stream& stream, const uint8_t devEUI[8], const uint8_
 
 // Initializes the device and connects to the network using Activation By Personalization.
 // Returns true on successful connection.
-bool Sodaq_RN2483::initABP(Stream& stream, const uint8_t devAddr[4], const uint8_t appSKey[16], const uint8_t nwkSKey[16], bool adr)
+bool Sodaq_RN2483::initABP(SerialType& stream, const uint8_t devAddr[4], const uint8_t appSKey[16], const uint8_t nwkSKey[16], bool adr)
 {
     debugPrintLn("[initABP]");
 
@@ -170,6 +176,36 @@ uint16_t Sodaq_RN2483::receive(uint8_t* buffer, uint16_t size,
     return outputIndex;
 }
 
+#ifdef ENABLE_SLEEP
+
+void Sodaq_RN2483::wakeUp()
+{
+    debugPrintLn("[wakeUp]");
+
+    // "emulate" break condition
+    this->loraStream->flush();
+    this->loraStream->end();
+    this->loraStream->begin(300);
+    this->loraStream->write((uint8_t)0x00);
+    this->loraStream->flush();
+    this->loraStream->end();
+
+    // set baudrate
+    this->loraStream->begin(getDefaultBaudRate());
+    this->loraStream->write((uint8_t)0x55);
+    this->loraStream->flush();
+}
+
+void Sodaq_RN2483::sleep()
+{
+    debugPrintLn("[sleep]");
+
+    this->loraStream->print(STR_CMD_SLEEP);
+    this->loraStream->print(CRLF);
+}
+
+#endif
+
 // Reads a line from the device stream into the "buffer" starting at the "start" position of the buffer.
 // Returns the number of bytes read.
 uint16_t Sodaq_RN2483::readLn(char* buffer, uint16_t size, uint16_t start)
@@ -190,6 +226,7 @@ bool Sodaq_RN2483::expectString(const char* str, uint16_t timeout)
 
     unsigned long start = millis();
     while (millis() < start + timeout) {
+        sodaq_wdt_reset();
         debugPrint(".");
 
         if (readLn() > 0) {
@@ -359,6 +396,7 @@ uint8_t Sodaq_RN2483::macTransmit(const char* type, uint8_t port, const uint8_t*
     debugPrint("Waiting for server response");
     unsigned long timeout = millis() + RECEIVE_TIMEOUT; // hard timeout
     while (millis() < timeout) {
+        sodaq_wdt_reset();
         debugPrint(".");
         if (readLn() > 0) {
             debugPrintLn(".");debugPrint("(");debugPrint(this->inputBuffer);debugPrintLn(")");
@@ -415,15 +453,15 @@ uint8_t Sodaq_RN2483::onMacRX()
 
 #ifdef DEBUG
 // Provides a quick test of several methods as a pseudo-unit test.
-void Sodaq_RN2483::runTestSequence(Stream& stream)
+void Sodaq_RN2483::runTestSequence(SerialType& loraStream, Stream& debugStream)
 {
     debugPrint("free ram: ");
     debugPrintLn(freeRam());
 
-    init(stream);
+    init(loraStream);
 
-    this->loraStream = &stream;
-    this->diagStream = &stream;
+    this->loraStream = &loraStream;
+    this->diagStream = &debugStream;
 
     // expectString
     debugPrintLn("write \"testString\" and then CRLF");
