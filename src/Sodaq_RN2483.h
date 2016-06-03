@@ -45,7 +45,6 @@
  */
 
 //#define USE_DYNAMIC_BUFFER
-//#define DEBUG
 
 #define DEFAULT_INPUT_BUFFER_SIZE 64
 #define DEFAULT_RECEIVED_PAYLOAD_BUFFER_SIZE 32
@@ -130,11 +129,8 @@ public:
     void setReceivedPayloadBufferSize(uint16_t value) { this->receivedPayloadBufferSize = value; };
 #endif
 
-#ifdef DEBUG
     // Provides a quick test of several methods as a pseudo-unit test.
     void runTestSequence(SerialType& loraStream, Stream& debugStream);
-    int freeRam();
-#endif
 
 private:
     // The stream that communicates with the device.

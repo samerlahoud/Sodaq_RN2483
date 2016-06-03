@@ -23,6 +23,8 @@
 #include "Utils.h"
 #include "Sodaq_wdt.h"
 
+//#define DEBUG
+
 #ifdef DEBUG
 #define debugPrintLn(...) { if (this->diagStream) this->diagStream->println(__VA_ARGS__); }
 #define debugPrint(...) { if (this->diagStream) this->diagStream->print(__VA_ARGS__); }
@@ -452,9 +454,19 @@ uint8_t Sodaq_RN2483::onMacRX()
 }
 
 #ifdef DEBUG
+int freeRam()
+{
+    extern int __heap_start;
+    extern int *__brkval;
+    int v;
+    return (int)&v - (__brkval == 0 ? (int)&__heap_start : (int)__brkval);
+}
+#endif
+
 // Provides a quick test of several methods as a pseudo-unit test.
 void Sodaq_RN2483::runTestSequence(SerialType& loraStream, Stream& debugStream)
 {
+#ifdef DEBUG
     debugPrint("free ram: ");
     debugPrintLn(freeRam());
 
@@ -562,14 +574,5 @@ void Sodaq_RN2483::runTestSequence(SerialType& loraStream, Stream& debugStream)
 
     debugPrint("free ram: ");
     debugPrintLn(freeRam());
-}
-
-int Sodaq_RN2483::freeRam()
-{
-    extern int __heap_start;
-    extern int *__brkval;
-    int v;
-    return (int)&v - (__brkval == 0 ? (int)&__heap_start : (int)__brkval);
-}
-
 #endif
+}
