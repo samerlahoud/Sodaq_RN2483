@@ -292,7 +292,25 @@ bool Sodaq_RN2483::resetDevice()
     this->loraStream->print(STR_CMD_RESET);
     this->loraStream->print(CRLF);
 
-    return expectString(STR_DEVICE_TYPE);
+    if (expectString(STR_DEVICE_TYPE_RN)) {
+        if (strstr(this->inputBuffer, STR_DEVICE_TYPE_RN2483) != NULL) {
+            debugPrintLn("The device type is RN2483");
+
+            return true;
+        }
+        else if (strstr(this->inputBuffer, STR_DEVICE_TYPE_RN2903) != NULL) {
+            debugPrintLn("The device type is RN2903");
+
+            return true;
+        }
+        else {
+            debugPrintLn("Unknown device type!");
+
+            return false;
+        }
+    }
+
+    return false;
 }
 
 // Sends a join network command to the device and waits for the response (or timeout).
