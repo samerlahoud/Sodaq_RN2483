@@ -113,6 +113,10 @@ public:
     // Returns the number of bytes written or 0 if no packet is received since last transmission.
     uint16_t receive(uint8_t* buffer, uint16_t size, uint16_t payloadStartPosition = 0);
 
+    // Gets the preprogrammed EUI node address from the module.
+    // Returns the number of bytes written or 0 in case of error.
+    uint8_t getHWEUI(uint8_t* buffer, uint8_t size);
+
 #ifdef ENABLE_SLEEP
     void wakeUp();
 

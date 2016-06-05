@@ -178,6 +178,37 @@ uint16_t Sodaq_RN2483::receive(uint8_t* buffer, uint16_t size,
     return outputIndex;
 }
 
+// Gets the preprogrammed EUI node address from the module.
+// Returns the number of bytes written or 0 in case of error.
+uint8_t Sodaq_RN2483::getHWEUI(uint8_t* buffer, uint8_t size)
+{
+    debugPrintLn("[getHWEUI]");
+
+    this->loraStream->print(STR_CMD_GET_HWEUI);
+    this->loraStream->print(CRLF);
+
+    // TODO move to general "read hex" method
+    uint8_t inputIndex = 0;
+    uint8_t outputIndex = 0;
+
+    if (readLn() > 0) {
+        debugPrintLn(this->inputBuffer);
+        while (outputIndex < size
+            && inputIndex + 1 < this->inputBufferSize
+            && this->inputBuffer[inputIndex] != 0
+            && this->inputBuffer[inputIndex + 1] != 0) {
+            buffer[outputIndex] = HEX_PAIR_TO_BYTE(
+                this->inputBuffer[inputIndex],
+                this->inputBuffer[inputIndex + 1]);
+            inputIndex += 2;
+            outputIndex++;
+        }
+    }
+
+    debugPrint("[getHWEUI] count: "); debugPrintLn(outputIndex);
+    return outputIndex;
+}
+
 #ifdef ENABLE_SLEEP
 
 void Sodaq_RN2483::wakeUp()
