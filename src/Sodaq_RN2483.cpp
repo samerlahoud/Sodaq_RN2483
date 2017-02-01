@@ -230,11 +230,12 @@ void Sodaq_RN2483::wakeUp()
 
     // "emulate" break condition
     this->loraStream->flush();
-    this->loraStream->end();
+
     this->loraStream->begin(300);
     this->loraStream->write((uint8_t)0x00);
     this->loraStream->flush();
-    this->loraStream->end();
+
+    sodaq_wdt_safe_delay(50);
 
     // set baudrate
     this->loraStream->begin(getDefaultBaudRate());
