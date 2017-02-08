@@ -96,7 +96,8 @@ public:
 
     // Takes care of the init tasks common to both initOTA() and initABP.
     // If hardware reset is available, the module is re-set, otherwise it is woken up if possible.
-    void init(SerialType& stream, int8_t resetPin = -1);
+    // Returns true if the module replies to a device reset command.
+    bool init(SerialType& stream, int8_t resetPin = -1);
 
     // Initializes the device and connects to the network using Over-The-Air Activation.
     // Returns true on successful connection.

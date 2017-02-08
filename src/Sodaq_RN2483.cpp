@@ -60,7 +60,8 @@ Sodaq_RN2483::Sodaq_RN2483() :
 
 // Takes care of the init tasks common to both initOTA() and initABP.
 // If hardware reset is available, the module is re-set, otherwise it is woken up if possible.
-void Sodaq_RN2483::init(SerialType& stream, int8_t resetPin)
+// Returns true if the module replies to a device reset command.
+bool Sodaq_RN2483::init(SerialType& stream, int8_t resetPin)
 {
     debugPrintLn("[init]");
 
@@ -90,6 +91,8 @@ void Sodaq_RN2483::init(SerialType& stream, int8_t resetPin)
         wakeUp();
 #endif
     }
+
+    return resetDevice();
 }
 
 // Initializes the device and connects to the network using Over-The-Air Activation.
@@ -98,9 +101,7 @@ bool Sodaq_RN2483::initOTA(SerialType& stream, const uint8_t devEUI[8], const ui
 {
     debugPrintLn("[initOTA]");
 
-    init(stream, resetPin);
-
-    return resetDevice() &&
+    return init(stream, resetPin) &&
         setMacParam(STR_DEV_EUI, devEUI, 8) &&
         setMacParam(STR_APP_EUI, appEUI, 8) &&
         setMacParam(STR_APP_KEY, appKey, 16) &&
@@ -114,9 +115,7 @@ bool Sodaq_RN2483::initABP(SerialType& stream, const uint8_t devAddr[4], const u
 {
     debugPrintLn("[initABP]");
 
-    init(stream, resetPin);
-
-    return resetDevice() &&
+    return init(stream, resetPin) &&
         setMacParam(STR_DEV_ADDR, devAddr, 4) &&
         setMacParam(STR_APP_SESSION_KEY, appSKey, 16) &&
         setMacParam(STR_NETWORK_SESSION_KEY, nwkSKey, 16) &&
