@@ -94,13 +94,16 @@ public:
     // Returns the correct baudrate for the serial port that connects to the device.
     uint32_t getDefaultBaudRate() { return 57600; };
 
+    // Takes care of the init tasks common to both initOTA() and initABP.
+    void init(SerialType& stream, int8_t resetPin = -1);
+
     // Initializes the device and connects to the network using Over-The-Air Activation.
     // Returns true on successful connection.
-    bool initOTA(SerialType& stream, const uint8_t devEUI[8], const uint8_t appEUI[8], const uint8_t appKey[16], bool adr = true);
+    bool initOTA(SerialType& stream, const uint8_t devEUI[8], const uint8_t appEUI[8], const uint8_t appKey[16], bool adr = true, int8_t resetPin = -1);
 
     // Initializes the device and connects to the network using Activation By Personalization.
     // Returns true on successful connection.
-    bool initABP(SerialType& stream, const uint8_t devAddr[4], const uint8_t appSKey[16], const uint8_t nwkSKey[16], bool adr = true);
+    bool initABP(SerialType& stream, const uint8_t devAddr[4], const uint8_t appSKey[16], const uint8_t nwkSKey[16], bool adr = true, int8_t resetPin = -1);
 
     // Sets the optional "Diagnostics and Debug" stream.
     void setDiag(Stream& stream) { diagStream = &stream; };
@@ -215,9 +218,6 @@ private:
 
     // Used for resetting the module on init.
     int8_t resetPin;
-
-    // Takes care of the init tasks common to both initOTA() and initABP.
-    inline void init(SerialType& stream);
 
     // Reads a line from the device stream into the "buffer" starting at the "start" position of the buffer.
     // Returns the number of bytes read.

@@ -59,11 +59,14 @@ Sodaq_RN2483::Sodaq_RN2483() :
 }
 
 // Takes care of the init tasks common to both initOTA() and initABP.
-void Sodaq_RN2483::init(SerialType& stream)
+void Sodaq_RN2483::init(SerialType& stream, int8_t resetPin)
 {
     debugPrintLn("[init]");
 
     this->loraStream = &stream;
+    if (resetPin >= 0) {
+        enableHardwareReset(resetPin);
+    }
 
 #ifdef USE_DYNAMIC_BUFFER
     // make sure the buffers are only initialized once
@@ -85,11 +88,11 @@ void Sodaq_RN2483::init(SerialType& stream)
 
 // Initializes the device and connects to the network using Over-The-Air Activation.
 // Returns true on successful connection.
-bool Sodaq_RN2483::initOTA(SerialType& stream, const uint8_t devEUI[8], const uint8_t appEUI[8], const uint8_t appKey[16], bool adr)
+bool Sodaq_RN2483::initOTA(SerialType& stream, const uint8_t devEUI[8], const uint8_t appEUI[8], const uint8_t appKey[16], bool adr, int8_t resetPin)
 {
     debugPrintLn("[initOTA]");
 
-    init(stream);
+    init(stream, resetPin);
 
     return resetDevice() &&
         setMacParam(STR_DEV_EUI, devEUI, 8) &&
@@ -101,11 +104,11 @@ bool Sodaq_RN2483::initOTA(SerialType& stream, const uint8_t devEUI[8], const ui
 
 // Initializes the device and connects to the network using Activation By Personalization.
 // Returns true on successful connection.
-bool Sodaq_RN2483::initABP(SerialType& stream, const uint8_t devAddr[4], const uint8_t appSKey[16], const uint8_t nwkSKey[16], bool adr)
+bool Sodaq_RN2483::initABP(SerialType& stream, const uint8_t devAddr[4], const uint8_t appSKey[16], const uint8_t nwkSKey[16], bool adr, int8_t resetPin)
 {
     debugPrintLn("[initABP]");
 
-    init(stream);
+    init(stream, resetPin);
 
     return resetDevice() &&
         setMacParam(STR_DEV_ADDR, devAddr, 4) &&
