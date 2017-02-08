@@ -59,6 +59,7 @@ Sodaq_RN2483::Sodaq_RN2483() :
 }
 
 // Takes care of the init tasks common to both initOTA() and initABP.
+// If hardware reset is available, the module is re-set, otherwise it is woken up if possible.
 void Sodaq_RN2483::init(SerialType& stream, int8_t resetPin)
 {
     debugPrintLn("[init]");
@@ -78,12 +79,17 @@ void Sodaq_RN2483::init(SerialType& stream, int8_t resetPin)
     }
 #endif
 
-    // make sure the module's state is synced and woken up
+    if (isHardwareResetEnabled()) {
+        hardwareReset();
+    }
+    else {
+        // make sure the module's state is synced and woken up
 #ifdef ENABLE_SLEEP
-    sleep();
-    sodaq_wdt_safe_delay(10);
-    wakeUp();
+        sleep();
+        sodaq_wdt_safe_delay(10);
+        wakeUp();
 #endif
+    }
 }
 
 // Initializes the device and connects to the network using Over-The-Air Activation.
@@ -322,8 +328,6 @@ void Sodaq_RN2483::hardwareReset()
 bool Sodaq_RN2483::resetDevice()
 {
     debugPrintLn("[resetDevice]");
-
-    hardwareReset();
 
     this->loraStream->print(STR_CMD_RESET);
     this->loraStream->print(CRLF);

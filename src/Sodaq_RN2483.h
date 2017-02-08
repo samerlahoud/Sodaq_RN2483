@@ -95,6 +95,7 @@ public:
     uint32_t getDefaultBaudRate() { return 57600; };
 
     // Takes care of the init tasks common to both initOTA() and initABP.
+    // If hardware reset is available, the module is re-set, otherwise it is woken up if possible.
     void init(SerialType& stream, int8_t resetPin = -1);
 
     // Initializes the device and connects to the network using Over-The-Air Activation.
@@ -218,6 +219,9 @@ private:
 
     // Used for resetting the module on init.
     int8_t resetPin;
+
+    // Returns true if the hardware reset pin is set.
+    bool isHardwareResetEnabled() { return resetPin >= 0; };
 
     // Reads a line from the device stream into the "buffer" starting at the "start" position of the buffer.
     // Returns the number of bytes read.
