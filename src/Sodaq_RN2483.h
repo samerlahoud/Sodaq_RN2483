@@ -110,9 +110,6 @@ public:
     // Sets the optional "Diagnostics and Debug" stream.
     void setDiag(Stream& stream) { diagStream = &stream; };
 
-    // Enables hardware-resetting the module.
-    void enableHardwareReset(uint8_t resetPin) { this->resetPin = resetPin; };
-
     // Performs a hardware reset (using the reset pin -if available).
     void hardwareReset();
 
@@ -220,6 +217,9 @@ private:
 
     // Used for resetting the module on init.
     int8_t resetPin;
+
+    // Enables hardware-resetting the module.
+    void enableHardwareReset(uint8_t resetPin) { this->resetPin = resetPin; };
 
     // Returns true if the hardware reset pin is set.
     bool isHardwareResetEnabled() { return resetPin >= 0; };
