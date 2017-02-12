@@ -50,7 +50,8 @@ Sodaq_RN2483::Sodaq_RN2483() :
     inputBufferSize(DEFAULT_INPUT_BUFFER_SIZE),
     receivedPayloadBufferSize(DEFAULT_RECEIVED_PAYLOAD_BUFFER_SIZE),
     packetReceived(false),
-    isRN2903(false)
+    isRN2903(false),
+    resetPin(-1)
 {
 #ifdef USE_DYNAMIC_BUFFER
     this->isBufferInitialized = false;
@@ -58,11 +59,16 @@ Sodaq_RN2483::Sodaq_RN2483() :
 }
 
 // Takes care of the init tasks common to both initOTA() and initABP.
-void Sodaq_RN2483::init(SerialType& stream)
+// If hardware reset is available, the module is re-set, otherwise it is woken up if possible.
+// Returns true if the module replies to a device reset command.
+bool Sodaq_RN2483::init(SerialType& stream, int8_t resetPin)
 {
     debugPrintLn("[init]");
 
     this->loraStream = &stream;
+    if (resetPin >= 0) {
+        enableHardwareReset(resetPin);
+    }
 
 #ifdef USE_DYNAMIC_BUFFER
     // make sure the buffers are only initialized once
@@ -74,23 +80,28 @@ void Sodaq_RN2483::init(SerialType& stream)
     }
 #endif
 
-    // make sure the module's state is synced and woken up
+    if (isHardwareResetEnabled()) {
+        hardwareReset();
+    }
+    else {
+        // make sure the module's state is synced and woken up
 #ifdef ENABLE_SLEEP
-    sleep();
-    sodaq_wdt_safe_delay(10);
-    wakeUp();
+        sleep();
+        sodaq_wdt_safe_delay(10);
+        wakeUp();
 #endif
+    }
+
+    return resetDevice();
 }
 
 // Initializes the device and connects to the network using Over-The-Air Activation.
 // Returns true on successful connection.
-bool Sodaq_RN2483::initOTA(SerialType& stream, const uint8_t devEUI[8], const uint8_t appEUI[8], const uint8_t appKey[16], bool adr)
+bool Sodaq_RN2483::initOTA(SerialType& stream, const uint8_t devEUI[8], const uint8_t appEUI[8], const uint8_t appKey[16], bool adr, int8_t resetPin)
 {
     debugPrintLn("[initOTA]");
 
-    init(stream);
-
-    return resetDevice() &&
+    return init(stream, resetPin) &&
         setMacParam(STR_DEV_EUI, devEUI, 8) &&
         setMacParam(STR_APP_EUI, appEUI, 8) &&
         setMacParam(STR_APP_KEY, appKey, 16) &&
@@ -100,13 +111,11 @@ bool Sodaq_RN2483::initOTA(SerialType& stream, const uint8_t devEUI[8], const ui
 
 // Initializes the device and connects to the network using Activation By Personalization.
 // Returns true on successful connection.
-bool Sodaq_RN2483::initABP(SerialType& stream, const uint8_t devAddr[4], const uint8_t appSKey[16], const uint8_t nwkSKey[16], bool adr)
+bool Sodaq_RN2483::initABP(SerialType& stream, const uint8_t devAddr[4], const uint8_t appSKey[16], const uint8_t nwkSKey[16], bool adr, int8_t resetPin)
 {
     debugPrintLn("[initABP]");
 
-    init(stream);
-
-    return resetDevice() &&
+    return init(stream, resetPin) &&
         setMacParam(STR_DEV_ADDR, devAddr, 4) &&
         setMacParam(STR_APP_SESSION_KEY, appSKey, 16) &&
         setMacParam(STR_NETWORK_SESSION_KEY, nwkSKey, 16) &&
@@ -229,11 +238,12 @@ void Sodaq_RN2483::wakeUp()
 
     // "emulate" break condition
     this->loraStream->flush();
-    this->loraStream->end();
+
     this->loraStream->begin(300);
     this->loraStream->write((uint8_t)0x00);
     this->loraStream->flush();
-    this->loraStream->end();
+
+    sodaq_wdt_safe_delay(50);
 
     // set baudrate
     this->loraStream->begin(getDefaultBaudRate());
@@ -293,6 +303,22 @@ bool Sodaq_RN2483::expectString(const char* str, uint16_t timeout)
 bool Sodaq_RN2483::expectOK()
 {
     return expectString(STR_RESULT_OK);
+}
+
+void Sodaq_RN2483::hardwareReset()
+{
+    debugPrintLn("[hardwareReset]");
+
+    if (resetPin < 0) {
+        debugPrintLn("[hardwareReset] The reset pin is not set. Skipping.");
+        return;
+    }
+
+    // set pin mode every time to avoid constraining the user about when the pin is initialized
+    pinMode(resetPin, OUTPUT);
+    digitalWrite(resetPin, LOW);
+    sodaq_wdt_safe_delay(150);
+    digitalWrite(resetPin, HIGH);
 }
 
 // Sends a reset command to the module and waits for the success response (or timeout).
