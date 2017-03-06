@@ -249,6 +249,8 @@ void Sodaq_RN2483::wakeUp()
     this->loraStream->begin(getDefaultBaudRate());
     this->loraStream->write((uint8_t)0x55);
     this->loraStream->flush();
+
+    readLn();
 }
 
 void Sodaq_RN2483::sleep()
@@ -319,6 +321,7 @@ void Sodaq_RN2483::hardwareReset()
     digitalWrite(resetPin, LOW);
     sodaq_wdt_safe_delay(150);
     digitalWrite(resetPin, HIGH);
+    readLn();
 }
 
 // Sends a reset command to the module and waits for the success response (or timeout).
