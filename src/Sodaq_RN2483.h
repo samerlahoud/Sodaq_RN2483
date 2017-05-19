@@ -87,6 +87,8 @@ enum MacTransmitErrorCodes
 class Sodaq_RN2483
 {
 public:
+    typedef void(*ReceiveCallback)(const uint8_t* buffer, uint16_t size);
+
     // Creates a new Sodaq_RN2483 instance.
     Sodaq_RN2483();
 
@@ -165,6 +167,9 @@ public:
     bool setMacParam(const char* paramName, uint8_t paramValue);
     bool setMacParam(const char* paramName, const char* paramValue);
 
+    // Sets the (optional) callback to call when a reply is received
+    void setReceiveCallback(ReceiveCallback callback) { receiveCallback = callback; };
+    
 #ifdef ENABLE_SLEEP
     // Wakes up the module from sleep (if supported).
     void wakeUp();
@@ -201,6 +206,9 @@ private:
     // by default or (optionally) a user-defined value when using USE_DYNAMIC_BUFFER.
     uint16_t receivedPayloadBufferSize;
 
+    // The size of the last received payload.
+    uint16_t receivedPayloadSize;
+
     // The buffer where the version is saved (during resetDevice()).
     char version[MAX_VERSION_LENGTH];
 
@@ -229,6 +237,8 @@ private:
     // This flag keeps track if the next write is the continuation of the current command
     // A Carriage Return will reset this flag.
     bool _appendCommand;
+    // (optional) callback to call when a reply is received
+    ReceiveCallback receiveCallback;
 
     // Enables hardware-resetting the module.
     void enableHardwareReset(uint8_t resetPin) { this->resetPin = resetPin; };

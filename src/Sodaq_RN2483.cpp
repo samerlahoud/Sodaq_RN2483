@@ -49,10 +49,12 @@ Sodaq_RN2483::Sodaq_RN2483() :
     diagStream(0),
     inputBufferSize(DEFAULT_INPUT_BUFFER_SIZE),
     receivedPayloadBufferSize(DEFAULT_RECEIVED_PAYLOAD_BUFFER_SIZE),
+    receivedPayloadSize(0),
     packetReceived(false),
     isRN2903(false),
     resetPin(-1),
-    _appendCommand(false)
+    _appendCommand(false),
+    receiveCallback(0)
 {
 #ifdef USE_DYNAMIC_BUFFER
     this->isBufferInitialized = false;
@@ -206,32 +208,17 @@ uint16_t Sodaq_RN2483::receive(uint8_t* buffer, uint16_t size,
         return 0;
     }
 
-    uint16_t inputIndex = payloadStartPosition * 2; // payloadStartPosition is in bytes, not hex char pairs
-    uint16_t outputIndex = 0;
-
-    // check that the asked starting position is within bounds
-    if (inputIndex >= this->receivedPayloadBufferSize) {
+    // check that the requested starting position is within bounds
+    if (payloadStartPosition >= this->receivedPayloadBufferSize) {
         debugPrintLn("[receive]: Out of bounds start position!");
         return 0;
     }
 
-    // stop at the first string termination char, or if output buffer is over, or if payload buffer is over
-    while (outputIndex < size
-        && inputIndex + 1 < this->receivedPayloadBufferSize
-        && this->receivedPayloadBuffer[inputIndex] != 0
-        && this->receivedPayloadBuffer[inputIndex + 1] != 0) {
-        buffer[outputIndex] = HEX_PAIR_TO_BYTE(
-            this->receivedPayloadBuffer[inputIndex],
-            this->receivedPayloadBuffer[inputIndex + 1]);
-
-        inputIndex += 2;
-        outputIndex++;
-    }
-
-    // Note: if the payload has an odd length, the last char is discarded
+    uint16_t len = this->receivedPayloadSize <= size ? this->receivedPayloadSize : size;
+    memcpy(buffer, this->receivedPayloadBuffer, len);
 
     debugPrintLn("[receive]: Done");
-    return outputIndex;
+    return len;
 }
 
 // Gets the preprogrammed EUI node address from the module.
@@ -494,13 +481,13 @@ size_t Sodaq_RN2483::println(unsigned int num, int base)
     size_t i = print(num, base);
     return i + println();
 }
-
+    
 size_t Sodaq_RN2483::println(long num, int base)
 {
     size_t i = print(num, base);
     return i + println();
 }
-
+    
 size_t Sodaq_RN2483::println(unsigned long num, int base)
 {
     size_t i = print(num, base);
@@ -520,7 +507,7 @@ size_t Sodaq_RN2483::println(const Printable& x)
     size_t i = print(x);
     return i + println();
 }
-
+    
 size_t Sodaq_RN2483::println(void)
 {
     size_t i = print(CRLF);
@@ -772,7 +759,7 @@ uint8_t Sodaq_RN2483::lookupMacTransmitError(const char* error)
 uint8_t Sodaq_RN2483::macTransmit(const char* type, uint8_t port, const uint8_t* payload, uint8_t size)
 {
     debugPrintLn("[macTransmit]");
-
+    
     bool status = false;
     for (size_t ix = 0; ix < 3 && !status; ix++) {
         print(STR_CMD_MAC_TX);
@@ -780,10 +767,10 @@ uint8_t Sodaq_RN2483::macTransmit(const char* type, uint8_t port, const uint8_t*
         print(port);
         print(" ");
 
-        for (int i = 0; i < size; ++i) {
+    for (int i = 0; i < size; ++i) {
             print(static_cast<char>(NIBBLE_TO_HEX_CHAR(HIGH_NIBBLE(payload[i]))));
             print(static_cast<char>(NIBBLE_TO_HEX_CHAR(LOW_NIBBLE(payload[i]))));
-        }
+    }
 
         println();
         status = expectOK();
@@ -793,7 +780,9 @@ uint8_t Sodaq_RN2483::macTransmit(const char* type, uint8_t port, const uint8_t*
         return lookupMacTransmitError(this->inputBuffer); // inputBuffer still has the last line read
     }
 
-    this->packetReceived = false; // prepare for receiving a new packet
+    // prepare for receiving a new packet
+    this->packetReceived = false;
+    this->receivedPayloadSize = 0;
 
     debugPrint("Waiting for server response");
     unsigned long start = millis();
@@ -826,7 +815,7 @@ uint8_t Sodaq_RN2483::macTransmit(const char* type, uint8_t port, const uint8_t*
     return Timeout;
 }
 
-// Parses the input buffer and copies the received payload into the "received payload" buffer
+// Parses the input buffer and converts and copies the received payload into the "received payload" buffer
 // when a "mac rx" message has been received. It is called internally by macTransmit().
 // Returns 0 (NoError) or otherwise one of the MacTransmitErrorCodes.
 uint8_t Sodaq_RN2483::onMacRX()
@@ -849,9 +838,33 @@ uint8_t Sodaq_RN2483::onMacRX()
     token = strtok(NULL, " "); // until end of string
 
     uint16_t len = strlen(token) + 1; // include termination char
-    memcpy(this->receivedPayloadBuffer, token, len <= this->receivedPayloadBufferSize ? len : this->receivedPayloadBufferSize);
+    uint16_t start = (token - inputBuffer);
+    uint16_t inputIndex = start;
 
+    uint16_t outputIndex = 0;
+    
+    // stop at the first string termination char, or if payload buffer is over, or if input buffer is over
+    while ((this->inputBuffer[inputIndex] != 0)
+        && (this->inputBuffer[inputIndex + 1] != 0)
+        && (inputIndex + 1 < this->inputBufferSize)
+        && (inputIndex - start < len)
+        && (outputIndex + 1 < this->receivedPayloadBufferSize)) {
+            receivedPayloadBuffer[outputIndex] = HEX_PAIR_TO_BYTE(
+                this->inputBuffer[inputIndex],
+                this->inputBuffer[inputIndex + 1]);
+
+            inputIndex += 2;
+            outputIndex++;
+    }
+    // Note: if the payload has an odd length, the last char is discarded
+
+    this->receivedPayloadSize = outputIndex;
     this->packetReceived = true; // enable receive() again
+
+    if ((this->receivedPayloadSize > 0) && receiveCallback) {
+        receiveCallback((const uint8_t*)receivedPayloadBuffer, this->receivedPayloadSize); // TODO fix uint8_t vs char
+    }
+
     return NoError;
 }
 
@@ -878,6 +891,7 @@ void Sodaq_RN2483::runTestSequence(SerialType& loraStream, Stream& debugStream)
     this->diagStream = &debugStream;
 
     // expectString
+#if 0
     debugPrintLn("write \"testString\" and then CRLF");
     if (expectString("testString", 5000)) {
         debugPrintLn("[expectString] positive case works!");
@@ -888,7 +902,9 @@ void Sodaq_RN2483::runTestSequence(SerialType& loraStream, Stream& debugStream)
     if (!expectString("testString", 5000)) {
         debugPrintLn("[expectString] negative case works!");
     }
+#endif
 
+#if 0
     debugPrint("free ram: ");
     debugPrintLn(freeRam());
 
@@ -906,52 +922,57 @@ void Sodaq_RN2483::runTestSequence(SerialType& loraStream, Stream& debugStream)
 
     debugPrint("free ram: ");
     debugPrintLn(freeRam());
+#endif
 
-    // receive
-    debugPrintLn("");
-    debugPrintLn("==== receive");
-    char mockResult[] = "303132333435363738";
-    memcpy(this->receivedPayloadBuffer, mockResult, strlen(mockResult) + 1);
-    uint8_t payload[64];
-    debugPrintLn("* without having received packet");
-    uint8_t length = receive(payload, sizeof(payload));
-    debugPrintLn(reinterpret_cast<char*>(payload));
-    debugPrint("Length: ");
-    debugPrintLn(length);
-    debugPrintLn("* having received packet");
-    this->packetReceived = true;
-    length = receive(payload, sizeof(payload));
-    debugPrintLn(reinterpret_cast<char*>(payload));
-    debugPrint("Length: ");
-    debugPrintLn(length);
+#if 0
+    {
+        // onMacRX
+        debugPrintLn("");
+        debugPrintLn("==== onMacRX");
+        char mockRx[] = "mac_rx 1 313233343536373839";
+        uint8_t passArray[] = { 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39 };
+        size_t len = strlen(mockRx) + 1;
+        strncpy(this->inputBuffer, mockRx, len);
+        inputBuffer[len] = '\0';
+        this->packetReceived = false;// reset
+        debugPrint("Input buffer now is: ");
+        debugPrintLn(this->inputBuffer);
+        debugPrint("onMacRX result code: ");
+        debugPrintLn(onMacRX());
 
-    // onMacRX
-    debugPrintLn("");
-    debugPrintLn("==== onMacRX");
-    char mockRx[] = "mac_rx 1 303132333435363738";
-    memcpy(this->inputBuffer, mockRx, strlen(mockRx) + 1);
-    this->packetReceived = false;// reset
-    debugPrint("Input buffer now is: ");
-    debugPrintLn(this->inputBuffer);
-    debugPrint("onMacRX result code: ");
-    debugPrintLn(onMacRX());
-    uint8_t payload2[64];
-    if (receive(payload2, sizeof(payload2)) != 9) {
-        debugPrintLn("len is wrong!");
+        if (memcmp(receivedPayloadBuffer, passArray, receivedPayloadSize) == 0) {
+            debugPrintLn("PASS");
+        }
+        else {
+            debugPrintLn("FAIL");
+        }
     }
-    debugPrintLn(reinterpret_cast<char*>(payload2));
-    if (receive(payload2, sizeof(payload2), 2) != 7) {
-        debugPrintLn("len is wrong!");
-    }
-    debugPrintLn(reinterpret_cast<char*>(payload2));
-    if (receive(payload2, sizeof(payload2), 3) != 6) {
-        debugPrintLn("len is wrong!");
-    }
-    debugPrintLn(reinterpret_cast<char*>(payload2));
+#endif
 
-    debugPrint("free ram: ");
-    debugPrintLn(freeRam());
+#if 0
+    {
+        // receive
+        debugPrintLn("");
+        debugPrintLn("==== receive");
+        uint8_t mockResult[] = { 0x31, 0x32, 0x33, 0x34, 0x35, 0x00 };
+        memcpy(this->receivedPayloadBuffer, mockResult, sizeof(mockResult));
+        receivedPayloadSize = sizeof(mockResult);
+        uint8_t payload[64];
+        debugPrintLn("* without having received packet");
+        uint8_t length = receive(payload, sizeof(payload));
+        debugPrintLn(reinterpret_cast<char*>(payload));
+        debugPrint("Length: ");
+        debugPrintLn(length);
+        debugPrintLn("* having received packet");
+        this->packetReceived = true;
+        length = receive(payload, sizeof(payload));
+        debugPrintLn(reinterpret_cast<char*>(payload));
+        debugPrint("Length: ");
+        debugPrintLn(length);
+    }
+#endif
 
+#if 0
     // lookup error
     debugPrintLn("");
     debugPrintLn("");
@@ -976,5 +997,6 @@ void Sodaq_RN2483::runTestSequence(SerialType& loraStream, Stream& debugStream)
 
     debugPrint("free ram: ");
     debugPrintLn(freeRam());
+#endif
 #endif
 }
