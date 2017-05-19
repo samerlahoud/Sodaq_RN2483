@@ -103,7 +103,12 @@ bool Sodaq_RN2483::initOTA(SerialType& stream, const uint8_t devEUI[8], const ui
     debugPrintLn("[initOTA]");
 
     return init(stream, resetPin) &&
-        setMacParam(STR_DEV_EUI, devEUI, 8) &&
+        initOTA(devEUI, appEUI, appKey, adr);
+}
+
+bool Sodaq_RN2483::initOTA(const uint8_t devEUI[8], const uint8_t appEUI[8], const uint8_t appKey[16], bool adr)
+{
+    return setMacParam(STR_DEV_EUI, devEUI, 8) &&
         setMacParam(STR_APP_EUI, appEUI, 8) &&
         setMacParam(STR_APP_KEY, appKey, 16) &&
         setMacParam(STR_ADR, BOOL_TO_ONOFF(adr)) &&
@@ -117,7 +122,12 @@ bool Sodaq_RN2483::initABP(SerialType& stream, const uint8_t devAddr[4], const u
     debugPrintLn("[initABP]");
 
     return init(stream, resetPin) &&
-        setMacParam(STR_DEV_ADDR, devAddr, 4) &&
+        initABP(devAddr, appSKey, nwkSKey, adr);
+}
+
+bool Sodaq_RN2483::initABP(const uint8_t devAddr[4], const uint8_t appSKey[16], const uint8_t nwkSKey[16], bool adr)
+{
+    return setMacParam(STR_DEV_ADDR, devAddr, 4) &&
         setMacParam(STR_APP_SESSION_KEY, appSKey, 16) &&
         setMacParam(STR_NETWORK_SESSION_KEY, nwkSKey, 16) &&
         setMacParam(STR_ADR, BOOL_TO_ONOFF(adr)) &&
