@@ -1,21 +1,21 @@
 /*
-* Copyright (c) 2015 SODAQ. All rights reserved.
-*
-* This file is part of Sodaq_RN2483.
-*
-* Sodaq_RN2483 is free software: you can redistribute it and/or modify
-* it under the terms of the GNU Lesser General Public License as
-* published by the Free Software Foundation, either version 3 of
-* the License, or(at your option) any later version.
-*
-* Sodaq_RN2483 is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-* GNU Lesser General Public License for more details.
-*
-* You should have received a copy of the GNU Lesser General Public
-* License along with Sodaq_RN2483.  If not, see
-* <http://www.gnu.org/licenses/>.
+    Copyright (c) 2015 SODAQ. All rights reserved.
+
+    This file is part of Sodaq_RN2483.
+
+    Sodaq_RN2483 is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Lesser General Public License as
+    published by the Free Software Foundation, either version 3 of
+    the License, or(at your option) any later version.
+
+    Sodaq_RN2483 is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+    GNU Lesser General Public License for more details.
+
+    You should have received a copy of the GNU Lesser General Public
+    License along with Sodaq_RN2483.  If not, see
+    <http://www.gnu.org/licenses/>.
 */
 
 #ifndef SODAQ_RN2483_H_
@@ -28,22 +28,22 @@
 
 /**
 
- Notes:
+    Notes:
 
- - uint16_t is preferred over size_t because long is never needed by the
-   size of the packets or the buffers of this application.
-   (Kees Bakker does not agree with this. size_t is not the same as long.
+    - uint16_t is preferred over size_t because long is never needed by the
+    size of the packets or the buffers of this application.
+    (Kees Bakker does not agree with this. size_t is not the same as long.
     On AVR a size_t is uint16_t. On SAMD we don't care too much about the
     data size, a long is fine.)
- - Currently, only one received packet is supported. Every time a packet is
-   received, the previous one is overwritten.
- - Also multiple responses from the server (with Frame Pending Bit set) are
-   not supported.
- - The port of the received packet is not returned.
+    - Currently, only one received packet is supported. Every time a packet is
+    received, the previous one is overwritten.
+    - Also multiple responses from the server (with Frame Pending Bit set) are
+    not supported.
+    - The port of the received packet is not returned.
 
- */
+*/
 
- //#define USE_DYNAMIC_BUFFER
+//#define USE_DYNAMIC_BUFFER
 
 #define DEFAULT_INPUT_BUFFER_SIZE 64
 #define DEFAULT_RECEIVED_PAYLOAD_BUFFER_SIZE 32
@@ -67,8 +67,7 @@ typedef Stream SerialType;
 #endif
 
 // Available error codes.
-enum MacTransmitErrorCodes
-{
+enum MacTransmitErrorCodes {
     NoError = 0,
     NoResponse = 1,
     Timeout = 2,
@@ -86,7 +85,7 @@ enum MacTransmitErrorCodes
 // and not to create a new instance.
 class Sodaq_RN2483
 {
-public:
+  public:
     typedef void(*ReceiveCallback)(const uint8_t* buffer, uint16_t size);
 
     // Creates a new Sodaq_RN2483 instance.
@@ -143,7 +142,7 @@ public:
 
     // Sets the spreading factor.
     // In reality it sets the datarate of the module according to the
-    // LoraWAN specs mapping for 868MHz and 915MHz, 
+    // LoraWAN specs mapping for 868MHz and 915MHz,
     // using the given spreading factor parameter.
     bool setSpreadingFactor(uint8_t spreadingFactor);
 
@@ -169,7 +168,7 @@ public:
 
     // Sets the (optional) callback to call when a reply is received
     void setReceiveCallback(ReceiveCallback callback) { receiveCallback = callback; };
-    
+
 #ifdef ENABLE_SLEEP
     // Wakes up the module from sleep (if supported).
     void wakeUp();
@@ -191,7 +190,7 @@ public:
     // Provides a quick test of several methods as a pseudo-unit test.
     void runTestSequence(SerialType& loraStream, Stream& debugStream);
 
-private:
+  private:
     // The stream that communicates with the device.
     SerialType* loraStream;
 
@@ -216,7 +215,7 @@ private:
     // current with the latest transmission.
     bool packetReceived;
 
-    // Used to distinguise between RN2483 and RN2903. 
+    // Used to distinguise between RN2483 and RN2903.
     // Currently only being set during reset().
     bool isRN2903;
 
@@ -260,8 +259,8 @@ private:
     // Write the command prolog (just for debugging
     void writeProlog();
 
-    size_t print(const __FlashStringHelper *);
-    size_t print(const String &);
+    size_t print(const __FlashStringHelper*);
+    size_t print(const String&);
     size_t print(const char[]);
     size_t print(char);
     size_t print(unsigned char, int = DEC);
@@ -272,8 +271,8 @@ private:
     size_t print(double, int = 2);
     size_t print(const Printable&);
 
-    size_t println(const __FlashStringHelper *);
-    size_t println(const String &s);
+    size_t println(const __FlashStringHelper*);
+    size_t println(const String& s);
     size_t println(const char[]);
     size_t println(char);
     size_t println(unsigned char, int = DEC);
