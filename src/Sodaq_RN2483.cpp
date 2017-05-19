@@ -59,6 +59,41 @@ Sodaq_RN2483::Sodaq_RN2483() :
 #endif
 }
 
+uint8_t Sodaq_RN2483::getVersion(char* version, uint8_t size)
+{
+    uint8_t versionLen = strlen(this->version);
+
+    if (versionLen + 1 > size) {
+        // space not enough, just abort, after clearing the version
+        debugPrintLn("[getVersion] version buffer size is not enough. Aborting.");
+        memset(version, 0, size);
+
+        return 0;
+    }
+
+    strncpy(version, this->version, versionLen);
+    version[versionLen] = '\0'; // make sure it is null terminated
+
+    return versionLen + 1;
+}
+
+void Sodaq_RN2483::fillVersionFromReceivedBuffer()
+{
+    // start is after the first space after the RNxxxx string
+    char* start = strchr(strstr(inputBuffer, STR_DEVICE_TYPE_RN), ' ') + 1;
+    
+    // end is at the first space after the version
+    char* end = strchr(start, ' ');
+    
+    size_t len = (end - start);
+
+    // make sure there is space for null termination
+    len = len > sizeof(version) - 1 ? sizeof(version) - 1 : len;
+    
+    memcpy(version, start, len);
+    version[len] = '\0';
+}
+
 // Takes care of the init tasks common to both initOTA() and initABP.
 // If hardware reset is available, the module is re-set, otherwise it is woken up if possible.
 // Returns true if the module replies to a device reset command.
@@ -500,12 +535,14 @@ bool Sodaq_RN2483::resetDevice()
 {
     debugPrintLn("[resetDevice]");
 
+    memset(version, 0, sizeof(version));
     println(STR_CMD_RESET);
 
     if (expectString(STR_DEVICE_TYPE_RN)) {
         if (strstr(this->inputBuffer, STR_DEVICE_TYPE_RN2483) != NULL) {
             debugPrintLn("The device type is RN2483");
             isRN2903 = false;
+            fillVersionFromReceivedBuffer();
 
             return setPowerIndex(DEFAULT_PWR_IDX_868) &&
                 setSpreadingFactor(DEFAULT_SF_868);
@@ -514,6 +551,7 @@ bool Sodaq_RN2483::resetDevice()
             debugPrintLn("The device type is RN2903");
             // TODO move into init once it is decided how to handle RN2903-specific operations
             isRN2903 = true;
+            fillVersionFromReceivedBuffer();
 
             return setFsbChannels(DEFAULT_FSB) &&
                 setPowerIndex(DEFAULT_PWR_IDX_915) &&

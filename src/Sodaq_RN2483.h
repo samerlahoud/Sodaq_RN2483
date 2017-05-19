@@ -47,6 +47,7 @@
 
 #define DEFAULT_INPUT_BUFFER_SIZE 64
 #define DEFAULT_RECEIVED_PAYLOAD_BUFFER_SIZE 32
+#define MAX_VERSION_LENGTH 12
 #define DEFAULT_TIMEOUT 120
 #define RECEIVE_TIMEOUT 60000
 #define DEFAULT_FSB 2
@@ -91,6 +92,8 @@ public:
 
     // Returns the correct baudrate for the serial port that connects to the device.
     uint32_t getDefaultBaudRate() { return 57600; };
+
+    uint8_t getVersion(char* version, uint8_t size);
 
     // Takes care of the initialization tasks common to both initOTA() and initABP().
     // If hardware reset is available, the module is re-set, otherwise it is woken up if possible.
@@ -198,6 +201,9 @@ private:
     // by default or (optionally) a user-defined value when using USE_DYNAMIC_BUFFER.
     uint16_t receivedPayloadBufferSize;
 
+    // The buffer where the version is saved (during resetDevice()).
+    char version[MAX_VERSION_LENGTH];
+
     // Flag used to make sure the received payload buffer is
     // current with the latest transmission.
     bool packetReceived;
@@ -293,6 +299,9 @@ private:
     // when a "mac rx" message has been received. It is called internally by macTransmit().
     // Returns 0 (NoError) or otherwise one of the MacTransmitErrorCodes.
     uint8_t onMacRX();
+
+    // Used during deviceReset() to copy the version information to the version buffer.
+    void fillVersionFromReceivedBuffer();
 };
 
 extern Sodaq_RN2483 LoRaBee;
