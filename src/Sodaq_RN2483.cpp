@@ -26,8 +26,8 @@
 //#define DEBUG
 
 #ifdef DEBUG
-#define debugPrintLn(...) do { if (this->diagStream) this->diagStream->println(__VA_ARGS__); } while(0)
-#define debugPrint(...) do { if (this->diagStream) this->diagStream->print(__VA_ARGS__); } while (0)
+#define debugPrintLn(...) do { if (this->_diagStream) this->_diagStream->println(__VA_ARGS__); } while(0)
+#define debugPrint(...) do { if (this->_diagStream) this->_diagStream->print(__VA_ARGS__); } while (0)
 #warning "Debug mode is ON"
 #else
 #define debugPrintLn(...)
@@ -44,36 +44,36 @@ Sodaq_RN2483 LoRaBee;
 
 // Creates a new Sodaq_RN2483 instance.
 Sodaq_RN2483::Sodaq_RN2483() :
-    loraStream(0),
-    diagStream(0),
-    inputBufferSize(DEFAULT_INPUT_BUFFER_SIZE),
-    receivedPayloadBufferSize(DEFAULT_RECEIVED_PAYLOAD_BUFFER_SIZE),
-    receivedPayloadSize(0),
-    packetReceived(false),
-    isRN2903(false),
-    resetPin(-1),
+    _loraStream(0),
+    _diagStream(0),
+    _inputBufferSize(DEFAULT_INPUT_BUFFER_SIZE),
+    _receivedPayloadBufferSize(DEFAULT_RECEIVED_PAYLOAD_BUFFER_SIZE),
+    _receivedPayloadSize(0),
+    _packetReceived(false),
+    _isRN2903(false),
+    _resetPin(-1),
     _appendCommand(false),
-    receiveCallback(0)
+    _receiveCallback(0)
 {
 #ifdef USE_DYNAMIC_BUFFER
-    this->isBufferInitialized = false;
+    this->_isBufferInitialized = false;
 #endif
 }
 
-uint8_t Sodaq_RN2483::getVersion(char* version, uint8_t size)
+uint8_t Sodaq_RN2483::getVersion(char* versionBuffer, uint8_t size)
 {
-    uint8_t versionLen = strlen(this->version);
+    uint8_t versionLen = strlen(this->_version);
 
     if (versionLen + 1 > size) {
         // space not enough, just abort, after clearing the version
         debugPrintLn("[getVersion] version buffer size is not enough. Aborting.");
-        memset(version, 0, size);
+        memset(versionBuffer, 0, size);
 
         return 0;
     }
 
-    strncpy(version, this->version, versionLen);
-    version[versionLen] = '\0'; // make sure it is null terminated
+    strncpy(versionBuffer, this->_version, versionLen);
+    versionBuffer[versionLen] = '\0'; // make sure it is null terminated
 
     return versionLen + 1;
 }
@@ -81,7 +81,7 @@ uint8_t Sodaq_RN2483::getVersion(char* version, uint8_t size)
 void Sodaq_RN2483::fillVersionFromReceivedBuffer()
 {
     // start is after the first space after the RNxxxx string
-    char* start = strchr(strstr(inputBuffer, STR_DEVICE_TYPE_RN), ' ') + 1;
+    char* start = strchr(strstr(_inputBuffer, STR_DEVICE_TYPE_RN), ' ') + 1;
 
     // end is at the first space after the version
     char* end = strchr(start, ' ');
@@ -89,10 +89,10 @@ void Sodaq_RN2483::fillVersionFromReceivedBuffer()
     size_t len = (end - start);
 
     // make sure there is space for null termination
-    len = len > sizeof(version) - 1 ? sizeof(version) - 1 : len;
+    len = len > sizeof(_version) - 1 ? sizeof(_version) - 1 : len;
 
-    memcpy(version, start, len);
-    version[len] = '\0';
+    memcpy(_version, start, len);
+    _version[len] = '\0';
 }
 
 // Takes care of the init tasks common to both initOTA() and initABP.
@@ -102,8 +102,8 @@ bool Sodaq_RN2483::init(SerialType& stream, int8_t resetPin)
 {
     debugPrintLn("[init]");
 
-    this->loraStream = &stream;
-    this->loraStream->setTimeout(DEFAULT_CHAR_TIMEOUT);
+    this->_loraStream = &stream;
+    this->_loraStream->setTimeout(DEFAULT_CHAR_TIMEOUT);
 
     if (resetPin >= 0) {
         enableHardwareReset(resetPin);
@@ -112,11 +112,11 @@ bool Sodaq_RN2483::init(SerialType& stream, int8_t resetPin)
 #ifdef USE_DYNAMIC_BUFFER
 
     // make sure the buffers are only initialized once
-    if (!isBufferInitialized) {
-        this->inputBuffer = static_cast<char*>(malloc(this->inputBufferSize));
-        this->receivedPayloadBuffer = static_cast<char*>(malloc(this->receivedPayloadBufferSize));
+    if (!_isBufferInitialized) {
+        this->_inputBuffer = static_cast<char*>(malloc(this->_inputBufferSize));
+        this->_receivedPayloadBuffer = static_cast<char*>(malloc(this->_receivedPayloadBufferSize));
 
-        isBufferInitialized = true;
+        _isBufferInitialized = true;
     }
 
 #endif
@@ -206,19 +206,19 @@ uint16_t Sodaq_RN2483::receive(uint8_t* buffer, uint16_t size,
 {
     debugPrintLn("[receive]");
 
-    if (!this->packetReceived) {
+    if (!this->_packetReceived) {
         debugPrintLn("[receive]: There is no packet received!");
         return 0;
     }
 
     // check that the requested starting position is within bounds
-    if (payloadStartPosition >= this->receivedPayloadBufferSize) {
+    if (payloadStartPosition >= this->_receivedPayloadBufferSize) {
         debugPrintLn("[receive]: Out of bounds start position!");
         return 0;
     }
 
-    uint16_t len = this->receivedPayloadSize <= size ? this->receivedPayloadSize : size;
-    memcpy(buffer, this->receivedPayloadBuffer, len);
+    uint16_t len = this->_receivedPayloadSize <= size ? this->_receivedPayloadSize : size;
+    memcpy(buffer, this->_receivedPayloadBuffer, len);
 
     debugPrintLn("[receive]: Done");
     return len;
@@ -246,19 +246,19 @@ uint8_t Sodaq_RN2483::getHWEUI(uint8_t* buffer, uint8_t size)
         len = readLn();
 
         if (len > 0) {
-            debugPrintLn(this->inputBuffer);
+            debugPrintLn(this->_inputBuffer);
 
-            if (strncmp(this->inputBuffer, "invalid", 7) == 0) {
+            if (strncmp(this->_inputBuffer, "invalid", 7) == 0) {
                 return 0;
             }
 
             while (outputIndex < size
-                    && inputIndex + 1 < this->inputBufferSize
-                    && this->inputBuffer[inputIndex] != 0
-                    && this->inputBuffer[inputIndex + 1] != 0) {
+                    && inputIndex + 1 < this->_inputBufferSize
+                    && this->_inputBuffer[inputIndex] != 0
+                    && this->_inputBuffer[inputIndex + 1] != 0) {
                 buffer[outputIndex] = HEX_PAIR_TO_BYTE(
-                                          this->inputBuffer[inputIndex],
-                                          this->inputBuffer[inputIndex + 1]);
+                                          this->_inputBuffer[inputIndex],
+                                          this->_inputBuffer[inputIndex + 1]);
                 inputIndex += 2;
                 outputIndex++;
             }
@@ -280,18 +280,18 @@ void Sodaq_RN2483::wakeUp()
     debugPrintLn("[wakeUp]");
 
     // "emulate" break condition
-    this->loraStream->flush();
+    this->_loraStream->flush();
 
-    this->loraStream->begin(300);
-    this->loraStream->write((uint8_t)0x00);
-    this->loraStream->flush();
+    this->_loraStream->begin(300);
+    this->_loraStream->write((uint8_t)0x00);
+    this->_loraStream->flush();
 
     sodaq_wdt_safe_delay(50);
 
     // set baudrate
-    this->loraStream->begin(getDefaultBaudRate());
-    this->loraStream->write((uint8_t)0x55);
-    this->loraStream->flush();
+    this->_loraStream->begin(getDefaultBaudRate());
+    this->_loraStream->write((uint8_t)0x55);
+    this->_loraStream->flush();
 
     readLn();
 }
@@ -309,10 +309,10 @@ void Sodaq_RN2483::sleep()
 // Returns the number of bytes read.
 uint16_t Sodaq_RN2483::readLn(char* buffer, uint16_t size, uint16_t start)
 {
-    int len = this->loraStream->readBytesUntil('\n', buffer + start, size);
+    int len = this->_loraStream->readBytesUntil('\n', buffer + start, size);
 
     if (len > 0) {
-        this->inputBuffer[start + len - 1] = 0; // bytes until \n always end with \r, so get rid of it (-1)
+        this->_inputBuffer[start + len - 1] = 0; // bytes until \n always end with \r, so get rid of it (-1)
     }
 
     return len;
@@ -332,9 +332,9 @@ bool Sodaq_RN2483::expectString(const char* str, uint16_t timeout)
         debugPrint(".");
 
         if (readLn() > 0) {
-            debugPrint(String("--> \"") + this->inputBuffer + "\"");
+            debugPrint(String("--> \"") + this->_inputBuffer + "\"");
 
-            if (strstr(this->inputBuffer, str) != NULL) {
+            if (strstr(this->_inputBuffer, str) != NULL) {
                 debugPrintLn(" found a match!");
                 retval = true;
             }
@@ -356,16 +356,16 @@ void Sodaq_RN2483::hardwareReset()
 {
     debugPrintLn("[hardwareReset]");
 
-    if (resetPin < 0) {
+    if (_resetPin < 0) {
         debugPrintLn("[hardwareReset] The reset pin is not set. Skipping.");
         return;
     }
 
     // set pin mode every time to avoid constraining the user about when the pin is initialized
-    pinMode(resetPin, OUTPUT);
-    digitalWrite(resetPin, LOW);
+    pinMode(_resetPin, OUTPUT);
+    digitalWrite(_resetPin, LOW);
     sodaq_wdt_safe_delay(150);
-    digitalWrite(resetPin, HIGH);
+    digitalWrite(_resetPin, HIGH);
     readLn();
 }
 
@@ -380,7 +380,7 @@ void Sodaq_RN2483::writeProlog()
 // Write a byte, as binary data
 size_t Sodaq_RN2483::writeByte(uint8_t value)
 {
-    return this->loraStream->write(value);
+    return this->_loraStream->write(value);
 }
 
 size_t Sodaq_RN2483::print(const String& buffer)
@@ -388,7 +388,7 @@ size_t Sodaq_RN2483::print(const String& buffer)
     writeProlog();
     debugPrint(buffer);
 
-    return this->loraStream->print(buffer);
+    return this->_loraStream->print(buffer);
 }
 
 size_t Sodaq_RN2483::print(const char buffer[])
@@ -396,7 +396,7 @@ size_t Sodaq_RN2483::print(const char buffer[])
     writeProlog();
     debugPrint(buffer);
 
-    return this->loraStream->print(buffer);
+    return this->_loraStream->print(buffer);
 }
 
 size_t Sodaq_RN2483::print(char value)
@@ -404,7 +404,7 @@ size_t Sodaq_RN2483::print(char value)
     writeProlog();
     debugPrint(value);
 
-    return this->loraStream->print(value);
+    return this->_loraStream->print(value);
 };
 
 size_t Sodaq_RN2483::print(unsigned char value, int base)
@@ -412,7 +412,7 @@ size_t Sodaq_RN2483::print(unsigned char value, int base)
     writeProlog();
     debugPrint(value, base);
 
-    return this->loraStream->print(value, base);
+    return this->_loraStream->print(value, base);
 };
 
 size_t Sodaq_RN2483::print(int value, int base)
@@ -420,7 +420,7 @@ size_t Sodaq_RN2483::print(int value, int base)
     writeProlog();
     debugPrint(value, base);
 
-    return this->loraStream->print(value, base);
+    return this->_loraStream->print(value, base);
 };
 
 size_t Sodaq_RN2483::print(unsigned int value, int base)
@@ -428,7 +428,7 @@ size_t Sodaq_RN2483::print(unsigned int value, int base)
     writeProlog();
     debugPrint(value, base);
 
-    return this->loraStream->print(value, base);
+    return this->_loraStream->print(value, base);
 };
 
 size_t Sodaq_RN2483::print(long value, int base)
@@ -436,7 +436,7 @@ size_t Sodaq_RN2483::print(long value, int base)
     writeProlog();
     debugPrint(value, base);
 
-    return this->loraStream->print(value, base);
+    return this->_loraStream->print(value, base);
 };
 
 size_t Sodaq_RN2483::print(unsigned long value, int base)
@@ -444,7 +444,7 @@ size_t Sodaq_RN2483::print(unsigned long value, int base)
     writeProlog();
     debugPrint(value, base);
 
-    return this->loraStream->print(value, base);
+    return this->_loraStream->print(value, base);
 };
 
 size_t Sodaq_RN2483::println(const __FlashStringHelper* ifsh)
@@ -510,7 +510,7 @@ size_t Sodaq_RN2483::println(double num, int digits)
     writeProlog();
     debugPrint(num, digits);
 
-    return this->loraStream->println(num, digits);
+    return this->_loraStream->println(num, digits);
 }
 
 size_t Sodaq_RN2483::println(const Printable& x)
@@ -533,22 +533,22 @@ bool Sodaq_RN2483::resetDevice()
 {
     debugPrintLn("[resetDevice]");
 
-    memset(version, 0, sizeof(version));
+    memset(_version, 0, sizeof(_version));
     println(STR_CMD_RESET);
 
     if (expectString(STR_DEVICE_TYPE_RN)) {
-        if (strstr(this->inputBuffer, STR_DEVICE_TYPE_RN2483) != NULL) {
+        if (strstr(this->_inputBuffer, STR_DEVICE_TYPE_RN2483) != NULL) {
             debugPrintLn("The device type is RN2483");
-            isRN2903 = false;
+            _isRN2903 = false;
             fillVersionFromReceivedBuffer();
 
             return setPowerIndex(DEFAULT_PWR_IDX_868)
                    && setSpreadingFactor(DEFAULT_SF_868);
         }
-        else if (strstr(this->inputBuffer, STR_DEVICE_TYPE_RN2903) != NULL) {
+        else if (strstr(this->_inputBuffer, STR_DEVICE_TYPE_RN2903) != NULL) {
             debugPrintLn("The device type is RN2903");
             // TODO move into init once it is decided how to handle RN2903-specific operations
-            isRN2903 = true;
+            _isRN2903 = true;
             fillVersionFromReceivedBuffer();
 
             return setFsbChannels(DEFAULT_FSB)
@@ -602,7 +602,7 @@ bool Sodaq_RN2483::setSpreadingFactor(uint8_t spreadingFactor)
 
     int8_t datarate;
 
-    if (!isRN2903) {
+    if (!_isRN2903) {
         // RN2483 SF(DR) = 7(5), 8(4), 9(3), 10(2), 11(1), 12(0)
         datarate = 12 - spreadingFactor;
     }
@@ -793,12 +793,12 @@ uint8_t Sodaq_RN2483::macTransmit(const char* type, uint8_t port, const uint8_t*
     }
 
     if (!status) {
-        return lookupMacTransmitError(this->inputBuffer); // inputBuffer still has the last line read
+        return lookupMacTransmitError(this->_inputBuffer); // inputBuffer still has the last line read
     }
 
     // prepare for receiving a new packet
-    this->packetReceived = false;
-    this->receivedPayloadSize = 0;
+    this->_packetReceived = false;
+    this->_receivedPayloadSize = 0;
 
     debugPrint("Waiting for server response");
     unsigned long start = millis();
@@ -810,15 +810,15 @@ uint8_t Sodaq_RN2483::macTransmit(const char* type, uint8_t port, const uint8_t*
         if (readLn() > 0) {
             debugPrintLn(".");
             debugPrint("(");
-            debugPrint(this->inputBuffer);
+            debugPrint(this->_inputBuffer);
             debugPrintLn(")");
 
-            if (strstr(this->inputBuffer, " ") != NULL) { // to avoid double delimiter search
+            if (strstr(this->_inputBuffer, " ") != NULL) { // to avoid double delimiter search
                 // there is a splittable line -only case known is mac_rx
                 debugPrintLn("Splittable response found");
                 return onMacRX();
             }
-            else if (strstr(this->inputBuffer, STR_RESULT_MAC_TX_OK)) {
+            else if (strstr(this->_inputBuffer, STR_RESULT_MAC_TX_OK)) {
                 // done
                 debugPrintLn("Received mac_tx_ok");
                 return NoError;
@@ -826,7 +826,7 @@ uint8_t Sodaq_RN2483::macTransmit(const char* type, uint8_t port, const uint8_t*
             else {
                 // lookup the error message
                 debugPrintLn("Some other string received (error)");
-                return lookupMacTransmitError(this->inputBuffer);
+                return lookupMacTransmitError(this->_inputBuffer);
             }
         }
     }
@@ -843,7 +843,7 @@ uint8_t Sodaq_RN2483::onMacRX()
     debugPrintLn("[onMacRX]");
 
     // parse inputbuffer, put payload into packet buffer
-    char* token = strtok(this->inputBuffer, " ");
+    char* token = strtok(this->_inputBuffer, " ");
 
     // sanity check
     if (strcmp(token, STR_RESULT_MAC_RX) != 0) {
@@ -858,20 +858,20 @@ uint8_t Sodaq_RN2483::onMacRX()
     token = strtok(NULL, " "); // until end of string
 
     uint16_t len = strlen(token) + 1; // include termination char
-    uint16_t start = (token - inputBuffer);
+    uint16_t start = (token - _inputBuffer);
     uint16_t inputIndex = start;
 
     uint16_t outputIndex = 0;
 
     // stop at the first string termination char, or if payload buffer is over, or if input buffer is over
-    while ((this->inputBuffer[inputIndex] != 0)
-            && (this->inputBuffer[inputIndex + 1] != 0)
-            && (inputIndex + 1 < this->inputBufferSize)
+    while ((this->_inputBuffer[inputIndex] != 0)
+            && (this->_inputBuffer[inputIndex + 1] != 0)
+            && (inputIndex + 1 < this->_inputBufferSize)
             && (inputIndex - start < len)
-            && (outputIndex + 1 < this->receivedPayloadBufferSize)) {
-        receivedPayloadBuffer[outputIndex] = HEX_PAIR_TO_BYTE(
-                this->inputBuffer[inputIndex],
-                this->inputBuffer[inputIndex + 1]);
+            && (outputIndex + 1 < this->_receivedPayloadBufferSize)) {
+        _receivedPayloadBuffer[outputIndex] = HEX_PAIR_TO_BYTE(
+                this->_inputBuffer[inputIndex],
+                this->_inputBuffer[inputIndex + 1]);
 
         inputIndex += 2;
         outputIndex++;
@@ -879,11 +879,11 @@ uint8_t Sodaq_RN2483::onMacRX()
 
     // Note: if the payload has an odd length, the last char is discarded
 
-    this->receivedPayloadSize = outputIndex;
-    this->packetReceived = true; // enable receive() again
+    this->_receivedPayloadSize = outputIndex;
+    this->_packetReceived = true; // enable receive() again
 
-    if ((this->receivedPayloadSize > 0) && receiveCallback) {
-        receiveCallback((const uint8_t*)receivedPayloadBuffer, this->receivedPayloadSize); // TODO fix uint8_t vs char
+    if ((this->_receivedPayloadSize > 0) && _receiveCallback) {
+        _receiveCallback((const uint8_t*)_receivedPayloadBuffer, this->_receivedPayloadSize); // TODO fix uint8_t vs char
     }
 
     return NoError;
@@ -908,8 +908,8 @@ void Sodaq_RN2483::runTestSequence(SerialType& loraStream, Stream& debugStream)
 
     init(loraStream);
 
-    this->loraStream = &loraStream;
-    this->diagStream = &debugStream;
+    this->_loraStream = &loraStream;
+    this->_diagStream = &debugStream;
 
     // expectString
 #if 0
@@ -956,15 +956,15 @@ void Sodaq_RN2483::runTestSequence(SerialType& loraStream, Stream& debugStream)
         char mockRx[] = "mac_rx 1 313233343536373839";
         uint8_t passArray[] = { 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39 };
         size_t len = strlen(mockRx) + 1;
-        strncpy(this->inputBuffer, mockRx, len);
-        inputBuffer[len] = '\0';
-        this->packetReceived = false;// reset
+        strncpy(this->_inputBuffer, mockRx, len);
+        _inputBuffer[len] = '\0';
+        this->_packetReceived = false;// reset
         debugPrint("Input buffer now is: ");
-        debugPrintLn(this->inputBuffer);
+        debugPrintLn(this->_inputBuffer);
         debugPrint("onMacRX result code: ");
         debugPrintLn(onMacRX());
 
-        if (memcmp(receivedPayloadBuffer, passArray, receivedPayloadSize) == 0) {
+        if (memcmp(_receivedPayloadBuffer, passArray, _receivedPayloadSize) == 0) {
             debugPrintLn("PASS");
         }
         else {
@@ -979,8 +979,8 @@ void Sodaq_RN2483::runTestSequence(SerialType& loraStream, Stream& debugStream)
         debugPrintLn("");
         debugPrintLn("==== receive");
         uint8_t mockResult[] = { 0x31, 0x32, 0x33, 0x34, 0x35, 0x00 };
-        memcpy(this->receivedPayloadBuffer, mockResult, sizeof(mockResult));
-        receivedPayloadSize = sizeof(mockResult);
+        memcpy(this->_receivedPayloadBuffer, mockResult, sizeof(mockResult));
+        _receivedPayloadSize = sizeof(mockResult);
         uint8_t payload[64];
         debugPrintLn("* without having received packet");
         uint8_t length = receive(payload, sizeof(payload));
@@ -988,7 +988,7 @@ void Sodaq_RN2483::runTestSequence(SerialType& loraStream, Stream& debugStream)
         debugPrint("Length: ");
         debugPrintLn(length);
         debugPrintLn("* having received packet");
-        this->packetReceived = true;
+        this->_packetReceived = true;
         length = receive(payload, sizeof(payload));
         debugPrintLn(reinterpret_cast<char*>(payload));
         debugPrint("Length: ");

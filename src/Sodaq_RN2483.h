@@ -113,7 +113,7 @@ class Sodaq_RN2483
     bool initABP(const uint8_t devAddr[4], const uint8_t appSKey[16], const uint8_t nwkSKey[16], bool adr = true);
 
     // Sets the optional "Diagnostics and Debug" stream.
-    void setDiag(Stream& stream) { diagStream = &stream; };
+    void setDiag(Stream& stream) { _diagStream = &stream; };
 
     // Performs a hardware reset (using the reset pin -if available).
     void hardwareReset();
@@ -168,7 +168,7 @@ class Sodaq_RN2483
     bool setMacParam(const char* paramName, const char* paramValue);
 
     // Sets the (optional) callback to call when a reply is received
-    void setReceiveCallback(ReceiveCallback callback) { receiveCallback = callback; };
+    void setReceiveCallback(ReceiveCallback callback) { _receiveCallback = callback; };
 
 #ifdef ENABLE_SLEEP
     // Wakes up the module from sleep (if supported).
@@ -181,11 +181,11 @@ class Sodaq_RN2483
 #ifdef USE_DYNAMIC_BUFFER
     // Sets the size of the input buffer.
     // Needs to be called before initOTA()/initABP().
-    void setInputBufferSize(uint16_t value) { this->inputBufferSize = value; };
+    void setInputBufferSize(uint16_t value) { this->_inputBufferSize = value; };
 
     // Sets the size of the "Received Payload" buffer.
     // Needs to be called before initOTA()/initABP().
-    void setReceivedPayloadBufferSize(uint16_t value) { this->receivedPayloadBufferSize = value; };
+    void setReceivedPayloadBufferSize(uint16_t value) { this->_receivedPayloadBufferSize = value; };
 #endif
 
     // Provides a quick test of several methods as a pseudo-unit test.
@@ -193,58 +193,59 @@ class Sodaq_RN2483
 
   private:
     // The stream that communicates with the device.
-    SerialType* loraStream;
+    SerialType* _loraStream;
 
     // The (optional) stream to show debug information.
-    Stream* diagStream;
+    Stream* _diagStream;
 
     // The size of the input buffer. Equals DEFAULT_INPUT_BUFFER_SIZE
     // by default or (optionally) a user-defined value when using USE_DYNAMIC_BUFFER.
-    uint16_t inputBufferSize;
+    uint16_t _inputBufferSize;
 
     // The size of the received payload buffer. Equals DEFAULT_RECEIVED_PAYLOAD_BUFFER_SIZE
     // by default or (optionally) a user-defined value when using USE_DYNAMIC_BUFFER.
-    uint16_t receivedPayloadBufferSize;
+    uint16_t _receivedPayloadBufferSize;
 
     // The size of the last received payload.
-    uint16_t receivedPayloadSize;
+    uint16_t _receivedPayloadSize;
 
     // The buffer where the version is saved (during resetDevice()).
-    char version[MAX_VERSION_LENGTH];
+    char _version[MAX_VERSION_LENGTH];
 
     // Flag used to make sure the received payload buffer is
     // current with the latest transmission.
-    bool packetReceived;
+    bool _packetReceived;
 
     // Used to distinguise between RN2483 and RN2903.
     // Currently only being set during reset().
-    bool isRN2903;
+    bool _isRN2903;
 
 #ifdef USE_DYNAMIC_BUFFER
     // Flag to make sure the buffers are not allocated more than once.
-    bool isBufferInitialized;
+    bool _isBufferInitialized;
 
-    char* inputBuffer;
-    char* receivedPayloadBuffer;
+    char* _inputBuffer;
+    char* _receivedPayloadBuffer;
 #else
-    char inputBuffer[DEFAULT_INPUT_BUFFER_SIZE];
-    char receivedPayloadBuffer[DEFAULT_RECEIVED_PAYLOAD_BUFFER_SIZE];
+    char _inputBuffer[DEFAULT_INPUT_BUFFER_SIZE];
+    char _receivedPayloadBuffer[DEFAULT_RECEIVED_PAYLOAD_BUFFER_SIZE];
 #endif
 
     // Used for resetting the module on init.
-    int8_t resetPin;
+    int8_t _resetPin;
 
     // This flag keeps track if the next write is the continuation of the current command
     // A Carriage Return will reset this flag.
     bool _appendCommand;
+
     // (optional) callback to call when a reply is received
-    ReceiveCallback receiveCallback;
+    ReceiveCallback _receiveCallback;
 
     // Enables hardware-resetting the module.
-    void enableHardwareReset(uint8_t resetPin) { this->resetPin = resetPin; };
+    void enableHardwareReset(uint8_t resetPin) { this->_resetPin = resetPin; };
 
     // Returns true if the hardware reset pin is set.
-    bool isHardwareResetEnabled() { return resetPin >= 0; };
+    bool isHardwareResetEnabled() { return _resetPin >= 0; };
 
     // Reads a line from the device stream into the "buffer" starting at the "start" position of the buffer.
     // Returns the number of bytes read.
@@ -252,7 +253,7 @@ class Sodaq_RN2483
 
     // Reads a line from the device stream into the input buffer.
     // Returns the number of bytes read.
-    uint16_t readLn() { return readLn(this->inputBuffer, this->inputBufferSize); };
+    uint16_t readLn() { return readLn(this->_inputBuffer, this->_inputBufferSize); };
 
     // Write a byte
     size_t writeByte(uint8_t value);
