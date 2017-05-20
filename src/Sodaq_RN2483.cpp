@@ -103,6 +103,7 @@ bool Sodaq_RN2483::init(SerialType& stream, int8_t resetPin)
     debugPrintLn("[init]");
 
     this->loraStream = &stream;
+    this->loraStream->setTimeout(DEFAULT_CHAR_TIMEOUT);
 
     if (resetPin >= 0) {
         enableHardwareReset(resetPin);
