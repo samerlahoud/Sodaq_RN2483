@@ -20,11 +20,27 @@
 
 #include <Sodaq_RN2483.h>
 
+#if defined(ARDUINO_AVR_SODAQ_MBILI) || defined(ARDUINO_AVR_SODAQ_TATU)
 // MBili
 #define debugSerial Serial
-// Autonomo
-//#define debugSerial SerialUSB
 #define loraSerial Serial1
+#define beePin 20
+#elif defined(ARDUINO_SODAQ_AUTONOMO)
+// Autonomo
+#define debugSerial SerialUSB
+#define loraSerial Serial1
+#define beePin BEE_VCC
+#elif defined(ARDUINO_SODAQ_ONE) || defined(ARDUINO_SODAQ_ONE_BETA)
+// Sodaq One
+#define debugSerial SerialUSB
+#define loraSerial Serial1
+#elif defined(ARDUINO_SODAQ_EXPLORER)
+#define debugSerial SerialUSB
+#define loraSerial Serial2
+#else
+#error "Please select Autonomo, Mbili, or Tatu"
+#endif
+
 
 const uint8_t devAddr[4] =
 {
@@ -51,6 +67,11 @@ const uint8_t nwkSKey[16] =
 
 void setup()
 {
+	#ifdef beePin
+		digitalWrite(beePin, HIGH);
+		pinMode(beePin, OUTPUT);
+	#endif
+
 	debugSerial.begin(57600);
 	loraSerial.begin(LoRaBee.getDefaultBaudRate());
 

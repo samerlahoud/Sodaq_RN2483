@@ -20,7 +20,7 @@
 
 #include <Sodaq_RN2483.h>
 
-#if defined(ARDUINO_SODAQ_MBILI) || defined(ARDUINO_SODAQ_TATU)
+#if defined(ARDUINO_AVR_SODAQ_MBILI) || defined(ARDUINO_AVR_SODAQ_TATU)
 // MBili
 #define debugSerial Serial
 #define loraSerial Serial1
@@ -30,6 +30,13 @@
 #define debugSerial SerialUSB
 #define loraSerial Serial1
 #define beePin BEE_VCC
+#elif defined(ARDUINO_SODAQ_ONE) || defined(ARDUINO_SODAQ_ONE_BETA)
+// Sodaq One
+#define debugSerial SerialUSB
+#define loraSerial Serial1
+#elif defined(ARDUINO_SODAQ_EXPLORER)
+#define debugSerial SerialUSB
+#define loraSerial Serial2
 #else
 #error "Please select Autonomo, Mbili, or Tatu"
 #endif
@@ -67,8 +74,11 @@ void setup()
 	debugSerial.begin(57600);
 	loraSerial.begin(LoRaBee.getDefaultBaudRate());
 
+    #ifdef beePin
 	digitalWrite(beePin, HIGH);
 	pinMode(beePin, OUTPUT);
+    #endif
+
 
 	LoRaBee.setDiag(debugSerial); // optional
 	if (LoRaBee.initABP(loraSerial, devAddr, appSKey, nwkSKey, true))
