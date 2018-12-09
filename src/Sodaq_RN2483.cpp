@@ -1031,3 +1031,47 @@ void Sodaq_RN2483::runTestSequence(SerialType& loraStream, Stream& debugStream)
 #endif
 #endif
 }
+
+boolean Sodaq_RN2483::configChFreq(int channel, long freq, int drmin, int drmax, int dcyclePercent) {
+    this->_loraStream->print("mac set ch freq ");
+    this->_loraStream->print(channel);
+    this->_loraStream->print(" ");
+    this->_loraStream->print(freq);
+    this->_loraStream->print(CRLF);
+    if (!expectOK()) return false;
+    
+    this->_loraStream->print("mac set ch drrange ");
+    this->_loraStream->print(channel);
+    this->_loraStream->print(" ");
+    this->_loraStream->print(drmin);
+    this->_loraStream->print(" ");
+    this->_loraStream->print(drmax);
+    this->_loraStream->print(CRLF);
+    if (!expectOK()) return false;
+    
+    this->_loraStream->print("mac set ch dcycle ");
+    this->_loraStream->print(channel);
+    this->_loraStream->print(" ");
+    int dcyleVal=round((100.0/(float)dcyclePercent)-1);
+    this->_loraStream->print(dcyleVal);
+    this->_loraStream->print(CRLF);
+    if (!expectOK()) return false;
+    
+    this->_loraStream->print("mac set ch status ");
+    this->_loraStream->print(channel);
+    this->_loraStream->print(" on");
+    this->_loraStream->print(CRLF);
+    return expectOK();
+    
+}
+
+// Set the RN2483 to sleep for n msec
+//
+void Sodaq_RN2483::timesleep(uint32_t msec) {
+    debugPrintLn("[sleep] ");
+    this->_loraStream->print("sys sleep ");
+    this->_loraStream->print(msec);
+    this->_loraStream->print(CRLF);
+    
+    //does NOT await OK
+}
