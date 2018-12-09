@@ -166,6 +166,9 @@ class Sodaq_RN2483
     bool setMacParam(const char* paramName, const uint8_t* paramValue, uint16_t size);
     bool setMacParam(const char* paramName, uint8_t paramValue);
     bool setMacParam(const char* paramName, const char* paramValue);
+    
+    //config channel / freq
+    boolean configChFreq(int channel, long freq,int drmin, int drmax, int dcyclePercent);
 
     // Sets the (optional) callback to call when a reply is received
     void setReceiveCallback(ReceiveCallback callback) { _receiveCallback = callback; };
@@ -176,6 +179,8 @@ class Sodaq_RN2483
 
     // Puts the module to sleep (if supported).
     void sleep();
+    // Send chip to sleep for n msec
+    void timesleep(uint32_t msec);
 #endif
 
 #ifdef USE_DYNAMIC_BUFFER
